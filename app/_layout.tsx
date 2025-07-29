@@ -1,29 +1,54 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Stack } from "expo-router";
+import { UserDetailContext } from "../context/UserDetailContext";
+import { useState, useEffect } from "react";
+import { useFonts } from "expo-font";
+import { View, ActivityIndicator } from "react-native";
+import Colors from "../constant/Colors";
+import { auth } from "../config/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+const [userDetail, setUserDetail] = useState(null);
+const [loading, setLoading] = useState(true);
+
+const [loaded] = useFonts({
+  'outfit': require('../assets/fonts/Outfit-Regular.ttf'),
+  'outfit-bold': require('../assets/fonts/Outfit-Bold.ttf'),
+});
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    if (firebaseUser) {
+      setUserDetail({
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+        email: firebaseUser.email,
+      });
+    } else {
+      setUserDetail(null);
+    }
+    setLoading(false);
   });
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
+  return unsubscribe;
+}, []);
 
+  useEffect(() => {
+    // console.log("UserDetail updated:", userDetail); // Debug log
+  }, [userDetail]);
+
+if (!loaded || loading) {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors?.WHITE || '#fff' }}>
+      <ActivityIndicator size="large" color={Colors?.PRIME || 'green'} />
+    </View>
   );
+}
+
+return (
+  <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
+    <Stack screenOptions={{ headerShown: false }} />
+  </UserDetailContext.Provider>
+);
+
 }
